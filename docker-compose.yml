@@ -38,14 +38,29 @@ services:
     container_name: todolist_front
     restart: always
     ports:
-      - "3000:80" 
+      - "3000:80"
     depends_on:
       - api
     networks:
       - frontend
 
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    user: root
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock  
+    networks:
+      - backend
+      - frontend
+
 volumes:
   db_data:
+  jenkins_home:
 
 networks:
   backend:
