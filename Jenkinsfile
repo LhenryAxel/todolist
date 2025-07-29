@@ -17,22 +17,30 @@ pipeline {
 
     stage('Installer les dépendances') {
       steps {
-        dir('frontend') {
-          sh 'npm ci'
-        }
-        dir('api') {
-          sh 'npm ci'
+        script {
+          docker.image('node:20').inside {
+            dir('frontend') {
+              sh 'npm ci'
+            }
+            dir('api') {
+              sh 'npm ci'
+            }
+          }
         }
       }
     }
 
     stage('Lancer les tests') {
       steps {
-        dir('frontend') {
-          sh 'npm run test'
-        }
-        dir('api') {
-          sh 'npm test || echo "⚠ Aucun vrai test API encore"'
+        script {
+          docker.image('node:20').inside {
+            dir('frontend') {
+              sh 'npm run test'
+            }
+            dir('api') {
+              sh 'npm test || echo "⚠ Aucun vrai test API encore"'
+            }
+          }
         }
       }
     }
@@ -51,12 +59,14 @@ pipeline {
 
     stage('Tag Git du dépôt') {
       steps {
-        sh """
-          git config user.name "jenkins"
-          git config user.email "jenkins@ci.local"
-          git tag ${DOCKER_TAG}
-          git push https://lhenryaxel:${env.GITHUB_TOKEN}@github.com/LhenryAxel/todolist.git --tags
-        """
+        withCredentials([usernamePassword(credentialsId: 'ghcr-token', passwordVariable: 'GITHUB_TOKEN', usernameVariable: 'GITHUB_USER')]) {
+          sh """
+            git config user.name "jenkins"
+            git config user.email "jenkins@ci.local"
+            git tag ${DOCKER_TAG}
+            git push https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/LhenryAxel/todolist.git --tags
+          """
+        }
       }
     }
   }
@@ -67,10 +77,10 @@ pipeline {
 
   post {
     failure {
-      echo 'Le pipeline a échoué.'
+      echo '❌ Le pipeline a échoué.'
     }
     success {
-      echo "Pipeline terminé avec succès - tag ${DOCKER_TAG} publié."
+      echo "✅ Pipeline terminé avec succès - tag ${DOCKER_TAG} publié."
     }
   }
 }
