@@ -17,7 +17,7 @@ pipeline {
     stage('Install dependencies - API') {
       steps {
         dir('api') {
-          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm ci'
+          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
         }
       }
     }
@@ -25,7 +25,7 @@ pipeline {
     stage('Install dependencies - Frontend') {
       steps {
         dir('frontend') {
-          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm ci'
+          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
         }
       }
     }
