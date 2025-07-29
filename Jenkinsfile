@@ -12,12 +12,17 @@ pipeline {
       }
     }
 
-    stage('Install dependencies') {
-      steps {
-        sh 'docker run --rm -v $PWD/frontend:/app -w /app node:20 npm ci'
-        sh 'docker run --rm -v $PWD/api:/app -w /app node:20 npm ci'
+  stage('Install dependencies') {
+    steps {
+      dir('frontend') {
+        sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
+      }
+      dir('api') {
+        sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
       }
     }
+  }
+
 
     stage('Run tests') {
       steps {
