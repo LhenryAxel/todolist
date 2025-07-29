@@ -30,6 +30,16 @@ pipeline {
       }
     }
 
+    stage('Check API dir') {
+      steps {
+        dir('api') {
+          sh 'ls -la'
+          sh 'cat package.json || echo "❌ package.json not found"'
+        }
+      }
+    }
+
+
     stage('Run tests - API') {
       steps {
         dir('api') {
