@@ -4,6 +4,7 @@ pipeline {
   environment {
     IMAGE_NAME = "ghcr.io/lhenryaxel/todolist"
     VERSION = "v1.${BUILD_NUMBER}"
+    ROOT = "/var/jenkins_home/workspace/todolist-ci"
   }
 
   stages {
@@ -15,33 +16,25 @@ pipeline {
 
     stage('Install dependencies - API') {
       steps {
-        dir('api') {
-          sh 'docker run --rm -v "$(pwd)":/app -w /app node:20 npm install'
-        }
+        sh 'docker run --rm -v $PWD/api:/app -w /app node:20 npm install'
       }
     }
 
     stage('Install dependencies - Frontend') {
       steps {
-        dir('frontend') {
-          sh 'docker run --rm -v "$(pwd)":/app -w /app node:20 npm install'
-        }
+        sh 'docker run --rm -v $PWD/frontend:/app -w /app node:20 npm install'
       }
     }
 
     stage('Run tests - API') {
       steps {
-        dir('api') {
-          sh 'docker run --rm -v "$(pwd)":/app -w /app node:20 npm test'
-        }
+        sh 'docker run --rm -v $PWD/api:/app -w /app node:20 npm test'
       }
     }
 
     stage('Run tests - Frontend') {
       steps {
-        dir('frontend') {
-          sh 'docker run --rm -v "$(pwd)":/app -w /app node:20 npm run test'
-        }
+        sh 'docker run --rm -v $PWD/frontend:/app -w /app node:20 npm run test'
       }
     }
 
