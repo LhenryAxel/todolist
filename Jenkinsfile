@@ -14,21 +14,22 @@ pipeline {
       }
     }
 
-    stage('Install dependencies - API') {
-      steps {
-        dir('api') {
-          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
-        }
+  stage('Install dependencies - API') {
+    steps {
+      dir('api') {
+        sh 'docker run --rm -v $(pwd):/app -w /app node:20 npm install'
       }
     }
+  }
 
-    stage('Install dependencies - Frontend') {
-      steps {
-        dir('frontend') {
-          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
-        }
+  stage('Install dependencies - Frontend') {
+    steps {
+      dir('frontend') {
+        sh 'docker run --rm -v $(pwd):/app -w /app node:20 npm install'
       }
     }
+  }
+
 
     stage('Check API dir') {
       steps {
