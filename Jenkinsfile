@@ -11,7 +11,7 @@ pipeline {
 
     stage('Cloner le dépôt') {
       steps {
-        git credentialsId: "${GITHUB_CREDENTIALS}", url: 'https://github.com/LhenryAxel/todolist.git', branch: 'main'
+        git credentialsId: "${GITHUB_CREDENTIALS}", url: 'https://github.com/LhenryAxel/todolist.git', branch: 'master'
       }
     }
 
@@ -62,7 +62,7 @@ pipeline {
   }
 
   triggers {
-    pollSCM('H/5 * * * *') // déclenchement auto toutes les 5 minutes si commit
+    pollSCM('H/5 * * * *') 
   }
 
   post {
