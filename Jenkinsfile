@@ -33,14 +33,23 @@ pipeline {
             }
         }
 
-        stage('Run tests - Frontend') {
-            steps {
-                echo "🧪 Running frontend tests..."
-                sh '''
-                    docker run --rm -v "$PWD/frontend:/app" -w /app node:20 npm test
-                '''
-            }
-        }
+          stage('Run tests - Frontend') {
+              steps {
+                  echo "🧪 Running frontend tests inside tmp-frontend..."
+                  sh '''
+                      docker create --name test-frontend node:20 sh -c '
+                          cd /app &&
+                          npm install &&
+                          echo "[DEBUG] Running npm test..." &&
+                          npm test
+                      '
+                      docker cp ./frontend/. test-frontend:/app
+                      docker start -a test-frontend
+                      docker rm test-frontend
+                  '''
+              }
+          }
+
 
         stage('Build Docker Image') {
             steps {
