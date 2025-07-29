@@ -14,6 +14,14 @@ pipeline {
       }
     }
 
+    stage('Debug API dir') {
+      steps {
+        sh 'ls -la /var/jenkins_home/workspace/todolist-ci'
+        sh 'ls -la /var/jenkins_home/workspace/todolist-ci/api'
+      }
+    }
+
+
     stage('Install dependencies - API') {
       steps {
         sh 'docker run --rm -v $PWD/api:/app -w /app node:20 npm install'
