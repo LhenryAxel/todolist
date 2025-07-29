@@ -24,8 +24,7 @@ pipeline {
 
     stage('Install dependencies - API') {
       steps {
-        sh 'docker run --rm -v /var/jenkins_home/workspace/todolist-ci/api:/app:ro -w /app node:20 ls -l package.json'
-      }
+      sh 'docker run --rm -v "${WORKSPACE}/api:/app" -w /app node:20 npm install'      }
     }
 
     stage('Install dependencies - Frontend') {
