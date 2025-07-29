@@ -2,23 +2,25 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME_API = "ghcr.io/lhenryaxel/todolist-api"
-    IMAGE_NAME_FRONTEND = "ghcr.io/lhenryaxel/todolist-frontend"
-    VERSION = "v${env.BUILD_NUMBER}"
-    GIT_CREDENTIALS_ID = "ghcr-token"
+    IMAGE_NAME = "ghcr.io/lhenryaxel/todolist"
+    VERSION = "v1.${BUILD_NUMBER}"
+    ROOT = "/var/jenkins_home/workspace/todolist-ci"
   }
 
   stages {
-
     stage('Checkout') {
       steps {
-        checkout scm
-        echo "✅ Code checked out"
-        sh 'ls -la'
-        sh 'ls -la api'
-        sh 'ls -la frontend'
+        git credentialsId: 'ghcr-token', url: 'https://github.com/LhenryAxel/todolist.git'
       }
     }
+
+    stage('Debug API dir') {
+      steps {
+        sh 'ls -la /var/jenkins_home/workspace/todolist-ci'
+        sh 'ls -la /var/jenkins_home/workspace/todolist-ci/api'
+      }
+    }
+
 
     stage('Install dependencies - API') {
       steps {
@@ -30,6 +32,7 @@ pipeline {
             ls -la &&
             echo '[DEBUG] Node:' && node -v &&
             echo '[DEBUG] NPM:' && npm -v &&
+            echo '[DEBUG] Running npm install...' &&
             npm install
           "
           docker cp ./api/. tmp-api:/app
@@ -38,6 +41,7 @@ pipeline {
         '''
       }
     }
+
 
     stage('Install dependencies - Frontend') {
       steps {
@@ -49,6 +53,7 @@ pipeline {
             ls -la &&
             echo '[DEBUG] Node:' && node -v &&
             echo '[DEBUG] NPM:' && npm -v &&
+            echo '[DEBUG] Running npm install...' &&
             npm install
           "
           docker cp ./frontend/. tmp-frontend:/app
@@ -58,68 +63,44 @@ pipeline {
       }
     }
 
+
     stage('Run tests - API') {
       steps {
-        echo "🧪 Running tests for API"
-        sh '''
-          docker build -t test-api ./api
-          docker run --rm test-api npm test || echo '[WARN] No test script'
-        '''
+        sh 'docker run --rm -v $PWD/api:/app -w /app node:20 npm test'
       }
     }
 
     stage('Run tests - Frontend') {
       steps {
-        echo "🧪 Running tests for Frontend"
-        sh '''
-          docker build -t test-frontend ./frontend
-          docker run --rm test-frontend npm test || echo '[WARN] No test script'
-        '''
+        sh 'docker run --rm -v $PWD/frontend:/app -w /app node:20 npm run test'
       }
     }
 
     stage('Build Docker Images') {
       steps {
-        echo "📦 Building Docker images"
-        sh "docker build -t $IMAGE_NAME_API:$VERSION ./api"
-        sh "docker build -t $IMAGE_NAME_FRONTEND:$VERSION ./frontend"
+        script {
+          sh "docker build -t ghcr.io/lhenryaxel/todolist-api:${VERSION} ./api"
+          sh "docker build -t ghcr.io/lhenryaxel/todolist-front:${VERSION} ./frontend"
+        }
       }
     }
 
     stage('Tag Git') {
       steps {
-        withCredentials([usernamePassword(credentialsId: "${GIT_CREDENTIALS_ID}", usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
-          sh '''
-            git config user.email "jenkins@example.com"
-            git config user.name "jenkins"
-            git tag $VERSION
-            git push https://$GIT_USER:$GIT_TOKEN@github.com/LhenryAxel/todolist.git $VERSION
-          '''
-        }
+        sh "git tag $VERSION && git push origin $VERSION"
       }
     }
 
     stage('Push to GitHub Packages') {
       steps {
-        withCredentials([usernamePassword(credentialsId: "${GIT_CREDENTIALS_ID}", usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
-          sh "echo $GIT_TOKEN | docker login ghcr.io -u $GIT_USER --password-stdin"
-          sh "docker push $IMAGE_NAME_API:$VERSION"
-          sh "docker push $IMAGE_NAME_FRONTEND:$VERSION"
+        withCredentials([usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'USERNAME', passwordVariable: 'TOKEN')]) {
+          sh """
+            echo "$TOKEN" | docker login ghcr.io -u $USERNAME --password-stdin
+            docker push ghcr.io/lhenryaxel/todolist-api:${VERSION}
+            docker push ghcr.io/lhenryaxel/todolist-front:${VERSION}
+          """
         }
       }
-    }
-  }
-
-  post {
-    always {
-      echo "🧹 Cleaning up workspace..."
-      cleanWs()
-    }
-    failure {
-      echo "❌ Build failed. Check above logs for more details."
-    }
-    success {
-      echo "✅ Build succeeded and Docker images pushed!"
     }
   }
 }
