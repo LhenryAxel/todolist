@@ -70,6 +70,22 @@ pipeline {
                 '''
             }
         }
+        
+        stage('Tag Git repo') {
+          steps {
+            withCredentials([usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+              sh '''
+                git config user.email "ci@todo.com"
+                git config user.name "CI Bot"
+                VERSION_TAG="v1.0.${BUILD_NUMBER}"
+                git tag -a $VERSION_TAG -m "Build $BUILD_NUMBER"
+                git push https://${GIT_USER}:${GIT_PASS}@github.com/LhenryAxel/todolist.git --tags
+                echo "📌 Tagged repository with $VERSION_TAG"
+              '''
+            }
+          }
+}
+
     }
 
     post {
