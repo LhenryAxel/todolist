@@ -3,6 +3,8 @@ pipeline {
 
   environment {
     VERSION = "v1.${BUILD_NUMBER}"
+    IMAGE_API = "ghcr.io/lhenryaxel/todolist-api:${VERSION}"
+    IMAGE_FRONT = "ghcr.io/lhenryaxel/todolist-front:${VERSION}"
   }
 
   stages {
@@ -12,49 +14,58 @@ pipeline {
       }
     }
 
-  stage('Install dependencies') {
-    steps {
-      dir('frontend') {
-        sh 'docker run --rm -v $(pwd):/app -w /app node:20 npm install'
-      }
-      dir('api') {
-        sh 'docker run --rm -v $(pwd):/app -w /app node:20 npm install'
+    stage('Install dependencies - API') {
+      steps {
+        dir('api') {
+          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm ci'
+        }
       }
     }
-  }
 
-
-
-    stage('Run tests') {
+    stage('Install dependencies - Frontend') {
       steps {
-        // Frontend tests (Vitest)
-        sh 'docker run --rm -v $PWD/frontend:/app -w /app node:20 npm test || true'
+        dir('frontend') {
+          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm ci'
+        }
+      }
+    }
 
-        // API: no real tests yet
-        sh 'docker run --rm -v $PWD/api:/app -w /app node:20 bash -c "npm test || echo ⚠ Aucun vrai test API encore"'
+    stage('Run tests - API') {
+      steps {
+        dir('api') {
+          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm test'
+        }
+      }
+    }
+
+    stage('Run tests - Frontend') {
+      steps {
+        dir('frontend') {
+          sh 'docker run --rm -v $PWD:/app -w /app node:20 npm run test'
+        }
       }
     }
 
     stage('Build Docker Images') {
       steps {
-        sh "docker build -t ghcr.io/lhenryaxel/todolist-api:${VERSION} ./api"
-        sh "docker build -t ghcr.io/lhenryaxel/todolist-front:${VERSION} ./frontend"
+        sh 'docker build -t $IMAGE_API ./api'
+        sh 'docker build -t $IMAGE_FRONT ./frontend'
       }
     }
 
     stage('Tag Git') {
       steps {
-        sh "git tag ${VERSION} && git push origin ${VERSION}"
+        sh "git tag $VERSION && git push origin $VERSION"
       }
     }
 
-    stage('Push to GitHub Package Registry') {
+    stage('Push to GitHub Packages') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'ghcr-token', usernameVariable: 'USERNAME', passwordVariable: 'TOKEN')]) {
           sh """
             echo "$TOKEN" | docker login ghcr.io -u $USERNAME --password-stdin
-            docker push ghcr.io/lhenryaxel/todolist-api:${VERSION}
-            docker push ghcr.io/lhenryaxel/todolist-front:${VERSION}
+            docker push $IMAGE_API
+            docker push $IMAGE_FRONT
           """
         }
       }
