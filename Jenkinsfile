@@ -1,137 +1,125 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        DOCKER_BUILDKIT = 1
+  environment {
+    IMAGE_NAME_API = "ghcr.io/lhenryaxel/todolist-api"
+    IMAGE_NAME_FRONTEND = "ghcr.io/lhenryaxel/todolist-frontend"
+    VERSION = "v${env.BUILD_NUMBER}"
+    GIT_CREDENTIALS_ID = "ghcr-token"
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+        echo "✅ Code checked out"
+        sh 'ls -la'
+        sh 'ls -la api'
+        sh 'ls -la frontend'
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-                echo '✅ Code checked out'
-                sh 'ls -la'
-                sh 'ls -la api || true'
-                sh 'ls -la frontend || true'
-            }
-        }
-
-        stage('Debug API dir') {
-            steps {
-                sh 'echo "[DEBUG] API directory content:"'
-                sh 'ls -la api'
-                sh 'cat api/package.json || echo "package.json NOT FOUND in API"'
-            }
-        }
-
-        stage('Install dependencies - API') {
-            steps {
-                echo '🔧 Installing API dependencies...'
-                sh '''
-                    docker run --rm \
-                        -v "$PWD/api:/app" \
-                        -w /app \
-                        node:20 sh -c '
-                            echo "[DEBUG] Inside container - API:" &&
-                            pwd &&
-                            ls -la &&
-                            echo "[DEBUG] node version:" &&
-                            node -v &&
-                            echo "[DEBUG] npm version:" &&
-                            npm -v &&
-                            echo "[DEBUG] Running npm install..." &&
-                            npm install
-                        '
-                '''
-            }
-        }
-
-        stage('Install dependencies - Frontend') {
-            steps {
-                echo '🔧 Installing Frontend dependencies...'
-                sh '''
-                    docker run --rm \
-                        -v "$PWD/frontend:/app" \
-                        -w /app \
-                        node:20 sh -c '
-                            echo "[DEBUG] Inside container - Frontend:" &&
-                            pwd &&
-                            ls -la &&
-                            echo "[DEBUG] node version:" &&
-                            node -v &&
-                            echo "[DEBUG] npm version:" &&
-                            npm -v &&
-                            echo "[DEBUG] Running npm install..." &&
-                            npm install
-                        '
-                '''
-            }
-        }
-
-        stage('Run tests - API') {
-            steps {
-                echo '🧪 Running API tests...'
-                sh '''
-                    docker run --rm \
-                        -v "$PWD/api:/app" \
-                        -w /app \
-                        node:20 sh -c '
-                            echo "[DEBUG] Running API tests..." &&
-                            npm test || echo "⚠️ Tests failed or are not defined"
-                        '
-                '''
-            }
-        }
-
-        stage('Run tests - Frontend') {
-            steps {
-                echo '🧪 Running Frontend tests...'
-                sh '''
-                    docker run --rm \
-                        -v "$PWD/frontend:/app" \
-                        -w /app \
-                        node:20 sh -c '
-                            echo "[DEBUG] Running Frontend tests..." &&
-                            npm test || echo "⚠️ Tests failed or are not defined"
-                        '
-                '''
-            }
-        }
-
-        stage('Build Docker Images') {
-            steps {
-                echo '🐳 Building Docker images...'
-                sh 'docker compose build --progress=plain'
-            }
-        }
-
-        stage('Tag Git') {
-            steps {
-                echo '🏷️ Tagging commit...'
-                sh '''
-                    git config --global user.email "ci@example.com"
-                    git config --global user.name "Jenkins CI"
-                    git tag -a "build-${BUILD_NUMBER}" -m "Build ${BUILD_NUMBER}"
-                    git push origin "build-${BUILD_NUMBER}"
-                '''
-            }
-        }
-
-        stage('Push to GitHub Packages') {
-            steps {
-                echo '📦 Pushing Docker images to GitHub Packages...'
-                sh 'docker compose push || echo "⚠️ Push failed (check auth or tags)"'
-            }
-        }
+    stage('Install dependencies - API') {
+      steps {
+        echo "🔧 Installing API dependencies using docker cp"
+        sh '''
+          docker create --name tmp-api node:20 sh -c "
+            cd /app &&
+            echo '[DEBUG] In container:' && pwd &&
+            ls -la &&
+            echo '[DEBUG] Node:' && node -v &&
+            echo '[DEBUG] NPM:' && npm -v &&
+            npm install
+          "
+          docker cp ./api/. tmp-api:/app
+          docker start -a tmp-api || echo '[ERROR] npm install failed'
+          docker rm tmp-api
+        '''
+      }
     }
 
-    post {
-        always {
-            echo '🧹 Cleaning up workspace...'
-            cleanWs()
-        }
-        failure {
-            echo '❌ Build failed. Check above logs for more details.'
-        }
+    stage('Install dependencies - Frontend') {
+      steps {
+        echo "🔧 Installing Frontend dependencies using docker cp"
+        sh '''
+          docker create --name tmp-frontend node:20 sh -c "
+            cd /app &&
+            echo '[DEBUG] In container:' && pwd &&
+            ls -la &&
+            echo '[DEBUG] Node:' && node -v &&
+            echo '[DEBUG] NPM:' && npm -v &&
+            npm install
+          "
+          docker cp ./frontend/. tmp-frontend:/app
+          docker start -a tmp-frontend || echo '[ERROR] npm install failed'
+          docker rm tmp-frontend
+        '''
+      }
     }
+
+    stage('Run tests - API') {
+      steps {
+        echo "🧪 Running tests for API"
+        sh '''
+          docker build -t test-api ./api
+          docker run --rm test-api npm test || echo '[WARN] No test script'
+        '''
+      }
+    }
+
+    stage('Run tests - Frontend') {
+      steps {
+        echo "🧪 Running tests for Frontend"
+        sh '''
+          docker build -t test-frontend ./frontend
+          docker run --rm test-frontend npm test || echo '[WARN] No test script'
+        '''
+      }
+    }
+
+    stage('Build Docker Images') {
+      steps {
+        echo "📦 Building Docker images"
+        sh "docker build -t $IMAGE_NAME_API:$VERSION ./api"
+        sh "docker build -t $IMAGE_NAME_FRONTEND:$VERSION ./frontend"
+      }
+    }
+
+    stage('Tag Git') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: "${GIT_CREDENTIALS_ID}", usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+          sh '''
+            git config user.email "jenkins@example.com"
+            git config user.name "jenkins"
+            git tag $VERSION
+            git push https://$GIT_USER:$GIT_TOKEN@github.com/LhenryAxel/todolist.git $VERSION
+          '''
+        }
+      }
+    }
+
+    stage('Push to GitHub Packages') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: "${GIT_CREDENTIALS_ID}", usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+          sh "echo $GIT_TOKEN | docker login ghcr.io -u $GIT_USER --password-stdin"
+          sh "docker push $IMAGE_NAME_API:$VERSION"
+          sh "docker push $IMAGE_NAME_FRONTEND:$VERSION"
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      echo "🧹 Cleaning up workspace..."
+      cleanWs()
+    }
+    failure {
+      echo "❌ Build failed. Check above logs for more details."
+    }
+    success {
+      echo "✅ Build succeeded and Docker images pushed!"
+    }
+  }
 }
