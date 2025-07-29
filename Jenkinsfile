@@ -15,13 +15,14 @@ pipeline {
   stage('Install dependencies') {
     steps {
       dir('frontend') {
-        sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
+        sh 'docker run --rm -v $(pwd):/app -w /app node:20 npm install'
       }
       dir('api') {
-        sh 'docker run --rm -v $PWD:/app -w /app node:20 npm install'
+        sh 'docker run --rm -v $(pwd):/app -w /app node:20 npm install'
       }
     }
   }
+
 
 
     stage('Run tests') {
