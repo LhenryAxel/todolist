@@ -14,26 +14,12 @@ pipeline {
             }
         }
 
-        stage('Install dependencies - Frontend') {
-            steps {
-                echo "Installing frontend dependencies in temporary container"
-                sh '''
-                    docker rm -f tmp-frontend || true
-                    docker create --name tmp-frontend node:20 sh -c 'cd /app && npm install'
-                    docker cp ./frontend/. tmp-frontend:/app
-                    docker start -a tmp-frontend
-                    docker rm tmp-frontend
-                    echo "Dependencies installed successfully"
-                '''
-            }
-        }
-
         stage('Run tests - Frontend') {
             steps {
                 echo "Running frontend tests in isolated container"
                 sh '''
                     docker rm -f test-frontend || true
-                    docker create --name test-frontend node:20 sh -c 'cd /app && npm install'
+                    docker create --name test-frontend node:20 sh -c 'cd /app && npm install && npm test'
                     docker cp ./frontend/. test-frontend:/app
                     docker start -a test-frontend
                     docker rm test-frontend
@@ -41,6 +27,7 @@ pipeline {
                 '''
             }
         }
+
 
         stage('Build Docker Image') {
             steps {
