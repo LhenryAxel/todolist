@@ -6,7 +6,7 @@ pipeline {
     }
 
     stages {
-        stage('Checkouttest') {
+        stage('Checkout') {
             steps {
                 echo "Cloning repository..."
                 checkout scm
@@ -60,14 +60,19 @@ pipeline {
         stage('Push to GitHub Packages') {
             steps {
                 echo "Pushing Docker image to GitHub Packages"
-                sh '''
-                    echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login ghcr.io -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
-                    docker tag lhenryaxel/todolist-frontend:latest ghcr.io/lhenryaxel/todolist-frontend:latest
-                    docker push ghcr.io/lhenryaxel/todolist-frontend:latest
-                    echo "Image pushed successfully"
-                '''
+                script {
+                    def versionTag = "v1.0.${env.BUILD_NUMBER}"
+                    sh '''
+                        echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login ghcr.io -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
+
+                        docker tag lhenryaxel/todolist-frontend:latest ghcr.io/lhenryaxel/todolist-frontend:latest
+                        docker tag lhenryaxel/todolist-frontend:latest ghcr.io/lhenryaxel/todolist-frontend:${versionTag}
+
+                        docker push ghcr.io/lhenryaxel/todolist-frontend:latest
+                        docker push ghcr.io/lhenryaxel/todolist-frontend:${versionTag}
+                    '''
+                }
             }
-        }
 
         stage('Tag Git repo') {
             steps {
