@@ -18,10 +18,9 @@ pipeline {
             steps {
                 echo "Installing frontend dependencies in temporary container"
                 sh '''
-                    docker create --name tmp-frontend node:20 sh -c'
-                        cd /app &&
-                        npm install
-                    '
+                    docker rm -f tmp-frontend || true
+                    docker create --name tmp-frontend node:20 sh -c 'cd /app && npm install'
+
                     docker cp ./frontend/. tmp-frontend:/app
                     docker start -a tmp-frontend
                     docker rm tmp-frontend
@@ -34,11 +33,9 @@ pipeline {
             steps {
                 echo "Running frontend tests in isolated container"
                 sh '''
-                    docker create --name test-frontend node:20 sh -c'
-                        cd /app &&
-                        npm install &&
-                        npm test
-                    '
+                    docker rm -f test-frontend || true
+                    docker create --name test-frontend node:20 sh -c 'cd /app && npm install'
+
                     docker cp ./frontend/. test-frontend:/app
                     docker start -a test-frontend
                     docker rm test-frontend
