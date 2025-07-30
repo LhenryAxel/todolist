@@ -6,7 +6,7 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkouttest') {
             steps {
                 echo "Cloning repository..."
                 checkout scm
@@ -18,7 +18,7 @@ pipeline {
             steps {
                 echo "Installing frontend dependencies in temporary container"
                 sh '''
-                    docker create --name tmp-frontend node:20 sh -c '
+                    docker create --name tmp-frontend node:20 sh -c'
                         cd /app &&
                         npm install
                     '
