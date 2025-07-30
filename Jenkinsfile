@@ -6,7 +6,7 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkouttest') {
             steps {
                 echo "Cloning repository..."
                 checkout scm
