@@ -20,7 +20,6 @@ pipeline {
                 sh '''
                     docker rm -f tmp-frontend || true
                     docker create --name tmp-frontend node:20 sh -c 'cd /app && npm install'
-
                     docker cp ./frontend/. tmp-frontend:/app
                     docker start -a tmp-frontend
                     docker rm tmp-frontend
@@ -35,7 +34,6 @@ pipeline {
                 sh '''
                     docker rm -f test-frontend || true
                     docker create --name test-frontend node:20 sh -c 'cd /app && npm install'
-
                     docker cp ./frontend/. test-frontend:/app
                     docker start -a test-frontend
                     docker rm test-frontend
@@ -59,15 +57,16 @@ pipeline {
                 echo "Pushing Docker image to GitHub Packages"
                 script {
                     def versionTag = "v1.0.${env.BUILD_NUMBER}"
-                    sh '''
-                        echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login ghcr.io -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
+                    sh """
+                        echo \"${DOCKERHUB_CREDENTIALS_PSW}\" | docker login ghcr.io -u \"${DOCKERHUB_CREDENTIALS_USR}\" --password-stdin
 
                         docker tag lhenryaxel/todolist-frontend:latest ghcr.io/lhenryaxel/todolist-frontend:latest
                         docker tag lhenryaxel/todolist-frontend:latest ghcr.io/lhenryaxel/todolist-frontend:${versionTag}
 
                         docker push ghcr.io/lhenryaxel/todolist-frontend:latest
                         docker push ghcr.io/lhenryaxel/todolist-frontend:${versionTag}
-                    '''
+                    """
+
                 }
             }
         }
