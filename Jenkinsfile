@@ -34,7 +34,7 @@ pipeline {
             steps {
                 echo "Running frontend tests in isolated container"
                 sh '''
-                    docker create --name test-frontend node:20 sh -c '
+                    docker create --name test-frontend node:20 sh -c'
                         cd /app &&
                         npm install &&
                         npm test
